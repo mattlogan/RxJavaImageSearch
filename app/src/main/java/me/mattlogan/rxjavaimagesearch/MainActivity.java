@@ -1,14 +1,11 @@
 package me.mattlogan.rxjavaimagesearch;
 
-import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
@@ -21,24 +18,22 @@ import com.squareup.picasso.Picasso;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import butterknife.InjectView;
 import me.mattlogan.rxjavaimagesearch.api.ImageSearchService;
+import me.mattlogan.rxjavaimagesearch.api.QueryOptionsFactory;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageData;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageSearchResponse;
 import rx.Observer;
-import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 
-public class MainActivity extends Activity implements Observer<ImageSearchResponse>,
-        AbsListView.OnScrollListener, TextView.OnEditorActionListener {
+public class MainActivity extends BaseActivity {
 
     private ImageSearchService imageSearchService;
 
-    private EditText editText;
-    private GridView gridView;
+    @InjectView(R.id.image_search_edit_text) EditText editText;
+    @InjectView(R.id.image_search_grid_view) GridView gridView;
 
     private ImageSearchGridAdapter adapter;
 
@@ -54,14 +49,36 @@ public class MainActivity extends Activity implements Observer<ImageSearchRespon
 
         imageSearchService = ImageSearchApplication.get().getImageSearchService();
 
-        editText = (EditText) findViewById(R.id.image_search_edit_text);
-        gridView = (GridView) findViewById(R.id.image_search_grid_view);
+        editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override public boolean onEditorAction(TextView textView, int actionId,
+                                                    KeyEvent keyEvent) {
 
-        editText.setOnEditorActionListener(this);
+                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                    imageDataList.clear();
+                    hideKeyboard();
+                    requestImageFetch(editText.getText().toString(), 0);
+                    return true;
+                }
+                return false;
+            }
+        });
 
         adapter = new ImageSearchGridAdapter(this);
         gridView.setAdapter(adapter);
-        gridView.setOnScrollListener(this);
+        gridView.setOnScrollListener(new AbsListView.OnScrollListener() {
+            @Override public void onScrollStateChanged(AbsListView absListView, int i) {
+            }
+
+            @Override
+            public void onScroll(AbsListView absListView, int firstVisibleItem,
+                                 int visibleItemCount, int totalItemCount) {
+
+                final int lastItem = firstVisibleItem + visibleItemCount;
+                if (lastItem == totalItemCount && totalItemCount != lastImageFetchStartIndex) {
+                    requestImageFetch(editText.getText().toString(), totalItemCount);
+                }
+            }
+        });
 
         if (savedInstanceState != null) {
             imageDataList =
@@ -71,46 +88,9 @@ public class MainActivity extends Activity implements Observer<ImageSearchRespon
         }
     }
 
-    @Override public void onScrollStateChanged(AbsListView absListView, int i) {
-
-    }
-
-    @Override
-    public void onScroll(AbsListView absListView, int firstVisibleItem, int visibleItemCount,
-                         int totalItemCount) {
-
-        final int lastItem = firstVisibleItem + visibleItemCount;
-
-        if (lastItem == totalItemCount && totalItemCount != lastImageFetchStartIndex) {
-            requestImageFetch(editText.getText().toString(), totalItemCount);
-        }
-    }
-
     @Override protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putSerializable(IMAGE_DATA_LIST_KEY, (Serializable) imageDataList);
-    }
-
-    @Override public boolean onEditorAction(TextView textView, int actionId, KeyEvent keyEvent) {
-        if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-            imageDataList.clear();
-            hideKeyboard();
-            requestImageFetch(editText.getText().toString(), 0);
-            return true;
-        }
-        return false;
-    }
-
-    @Override public void onCompleted() {
-    }
-
-    @Override public void onError(Throwable e) {
-        Toast.makeText(this, "Failed to load images", Toast.LENGTH_LONG).show();
-    }
-
-    @Override public void onNext(final ImageSearchResponse imageSearchResponse) {
-        imageDataList.addAll(imageSearchResponse.getResponseData().getResults());
-        adapter.notifyDataSetChanged();
     }
 
     private void requestImageFetch(String query, int startIndex) {
@@ -118,27 +98,26 @@ public class MainActivity extends Activity implements Observer<ImageSearchRespon
                 ImageSearchApplication.MAXIMUM_RESULTS) {
 
             imageSearchService
-                    .getImages(buildQueryOptions(query, startIndex))
+                    .getImages(QueryOptionsFactory.getQueryOptions(query, startIndex))
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(this);
+                    .subscribe(new Observer<ImageSearchResponse>() {
+                        @Override public void onCompleted() {
+                        }
+
+                        @Override public void onError(Throwable e) {
+                            Toast.makeText(MainActivity.this, "Failed to load images",
+                                    Toast.LENGTH_LONG).show();
+                        }
+
+                        @Override
+                        public void onNext(final ImageSearchResponse imageSearchResponse) {
+                            imageDataList.addAll(
+                                    imageSearchResponse.getResponseData().getResults());
+                            adapter.notifyDataSetChanged();
+                        }
+                    });
 
             lastImageFetchStartIndex = startIndex;
-        }
-    }
-
-    private Map<String, String> buildQueryOptions(String query, int startIndex) {
-        Map<String, String> options = new HashMap<String, String>();
-        options.put("q", query);
-        options.put("start", Integer.toString(startIndex));
-        return options;
-    }
-
-    private void hideKeyboard() {
-        if (getCurrentFocus() != null) {
-            InputMethodManager imm =
-                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(),
-                    InputMethodManager.HIDE_NOT_ALWAYS);
         }
     }
 

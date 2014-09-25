@@ -85,6 +85,7 @@
     <orderEntry type="library" exported="" name="gson-2.2.4" level="project" />
     <orderEntry type="library" exported="" name="rxjava-core-0.20.4" level="project" />
     <orderEntry type="library" exported="" name="rxjava-android-0.20.4" level="project" />
+    <orderEntry type="library" exported="" name="butterknife-5.1.2" level="project" />
   </component>
 </module>
 
