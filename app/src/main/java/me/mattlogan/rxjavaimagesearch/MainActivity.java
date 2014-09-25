@@ -20,13 +20,16 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import butterknife.ButterKnife;
 import butterknife.InjectView;
 import me.mattlogan.rxjavaimagesearch.api.ImageSearchService;
 import me.mattlogan.rxjavaimagesearch.api.QueryOptionsFactory;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageData;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageSearchResponse;
 import rx.Observer;
+import rx.Scheduler;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 
 public class MainActivity extends BaseActivity {
 
@@ -46,6 +49,7 @@ public class MainActivity extends BaseActivity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.inject(this);
 
         imageSearchService = ImageSearchApplication.get().getImageSearchService();
 
@@ -99,6 +103,7 @@ public class MainActivity extends BaseActivity {
 
             imageSearchService
                     .getImages(QueryOptionsFactory.getQueryOptions(query, startIndex))
+                    .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(new Observer<ImageSearchResponse>() {
                         @Override public void onCompleted() {
