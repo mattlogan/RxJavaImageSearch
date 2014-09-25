@@ -27,11 +27,10 @@ import me.mattlogan.rxjavaimagesearch.api.QueryOptionsFactory;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageData;
 import me.mattlogan.rxjavaimagesearch.api.model.ImageSearchResponse;
 import rx.Observer;
-import rx.Scheduler;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
-public class MainActivity extends BaseActivity {
+public class MainActivity extends BaseActivity implements Observer<ImageSearchResponse> {
 
     private ImageSearchService imageSearchService;
 
@@ -105,25 +104,23 @@ public class MainActivity extends BaseActivity {
                     .getImages(QueryOptionsFactory.getQueryOptions(query, startIndex))
                     .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(new Observer<ImageSearchResponse>() {
-                        @Override public void onCompleted() {
-                        }
-
-                        @Override public void onError(Throwable e) {
-                            Toast.makeText(MainActivity.this, "Failed to load images",
-                                    Toast.LENGTH_LONG).show();
-                        }
-
-                        @Override
-                        public void onNext(final ImageSearchResponse imageSearchResponse) {
-                            imageDataList.addAll(
-                                    imageSearchResponse.getResponseData().getResults());
-                            adapter.notifyDataSetChanged();
-                        }
-                    });
+                    .subscribe(this);
 
             lastImageFetchStartIndex = startIndex;
         }
+    }
+
+    @Override public void onCompleted() {
+    }
+
+    @Override public void onError(Throwable e) {
+        Toast.makeText(MainActivity.this, "Failed to load images",Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onNext(final ImageSearchResponse imageSearchResponse) {
+        imageDataList.addAll(imageSearchResponse.getResponseData().getResults());
+        adapter.notifyDataSetChanged();
     }
 
     private class ImageSearchGridAdapter extends BaseAdapter {
