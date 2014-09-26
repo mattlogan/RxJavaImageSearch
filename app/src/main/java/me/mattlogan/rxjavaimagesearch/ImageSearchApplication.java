@@ -13,8 +13,7 @@ public class ImageSearchApplication extends Application {
      * When combined with subsequent requests, a maximum total of 64 results are available.
      * It is not possible to request more than 64 results.
      */
-    public static final int RESULTS_PER_PAGE = 8;
-    public static final int MAXIMUM_RESULTS = 64;
+    public static final int RESULTS_PER_PAGE = 1;
 
     private static final String ENDPOINT = "https://ajax.googleapis.com";
 
